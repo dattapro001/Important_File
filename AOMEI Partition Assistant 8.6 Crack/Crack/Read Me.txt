@@ -1,0 +1,7 @@
+Install
+Copy the file "cfg.ini" to  install folder
+done
+
+
+Regards
+ARMOUR
