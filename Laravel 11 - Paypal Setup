@@ -215,6 +215,17 @@ Step 4:
 Create Route
 
 use App\Http\Controllers\PaypalController;
+use App\Http\Controllers\PaymentFormController;
+
+
+
+
+// paymentForm
+Route::get('/payment', [PaymentFormController::class, 'showPayment'])->name('learner.payment');
+Route::post('/payment/process', [PaymentFormController::class, 'processPayment'])->name('learner.payment.process');
+Route::get('/cart', function () {
+    return view('course.cart');
+})->name('cart');
 
 Route::get('paypal/transaction', [PaypalController::class, 'createTransaction'])->name('paypal.transaction');
 Route::get('paypal/error', [PaypalController::class, 'errorTransaction'])->name('paypal.error');
