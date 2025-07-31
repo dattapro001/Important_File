@@ -1,0 +1,215 @@
+Paypal Account Setup for Laravel
+
+Site Account (Buyer)
+Email:              sb-m8abm44987349@personal.example.com
+Password:      XMW8[@a2
+
+
+Learner Account (Seller)
+Email:           sb-n20za44795298@business.example.com
+Password:   Fl%8mUmu
+
+
+Step 1:
+Run those following Command-install PayPal and create file in config name  with PayPal.php
+
+composer require srmklive/paypal     
+-----------------------------------------------------------------------
+php artisan vendor:publish --provider="Srmklive\PayPal\Providers\PayPalServiceProvider"
+
+Step 2: 
+Set the .env
+
+PAYPAL_MODE=sandbox
+PAYPAL_SANDBOX_CLIENT_ID=your_client_id
+PAYPAL_SANDBOX_CLIENT_SECRET=your_client_secret
+PAYPAL_CURRENCY=GBP
+
+Demo:
+PAYPAL_SANDBOX_CLIENT_ID=AeTlIqWfjsvhRWgf86NFQT17uA_NErxO2-NGQmnO6osdfOnbddjlth8vDrCF-q38KhzDpG6FdwkolywK
+PAYPAL_SANDBOX_CLIENT_SECRET=EPoBaChhKubpfZCmNAqAdgRK1qc7fFbWqvkl8aaiYuOxQMMyHKaLd1qs1siMRv7pEN209NhByHvNqRXG
+
+
+
+
+Step 3:
+Write Paypal Controller (Keep this separate not in payment controller)
+
+<?php
+namespace App\Http\Controllers;
+
+use Srmklive\PayPal\Services\PayPal as PayPalClient;
+use Illuminate\Http\Request;
+use App\Models\CourseProgress;
+use App\Models\Course;
+use App\Models\Payment;
+use Illuminate\Support\Facades\Log;
+
+class PaypalController extends Controller
+{
+  public function createTransaction(Request $request)
+        {
+            $amount = $request->query('amount') ?? 10.00;
+
+            $provider = new PayPalClient;
+            $provider->setApiCredentials(config('paypal'));
+
+            $token = $provider->getAccessToken();
+
+            if (!is_array($token)) {
+                Log::error('PayPal token response was not an array', ['token' => $token]);
+                abort(500, 'PayPal authentication failed.');
+            }
+
+            $provider->setAccessToken($token);
+
+            // Pull items from session
+            $cartItems = session('paypal_cart', []);
+            $items = [];
+
+            foreach ($cartItems as $item) {
+                    $course = Course::where('unique_id', $item['unique_id'])->first();
+
+                    $payment = Payment::where('course_unique_id', $item['unique_id'])
+                        ->where('status', 'pending')
+                        ->latest()
+                        ->first();
+
+                    $paymentUniqueId = $payment ? $payment->payment_unique_id : 'UNKNOWN';
+
+                    $items[] = [
+                        'name' => $item['title'], // course Title Want to show
+                        'description' => 'Course ID: ' . $item['unique_id'] .
+                                        ' | Quantity: ' . $item['quantity'],     // In Description whatever you can show to paypal
+                        'quantity' => (int) $item['quantity'],
+                        'unit_amount' => [
+                            'currency_code' => 'GBP',
+                            'value' => number_format((float) $item['price'], 2, '.', ''),
+                        ],
+                        'sku' => (string) $paymentUniqueId,   // Product Id
+                    ];
+                }
+
+            // Total amount
+            $totalAmount = array_reduce($items, function ($sum, $item) {
+                return $sum + ($item['unit_amount']['value'] * $item['quantity']);
+            }, 0);
+
+            // Create PayPal Order
+            $response = $provider->createOrder([
+                "intent" => "CAPTURE",
+                "application_context" => [
+                    "return_url" => route('paypal.success'),
+                    "cancel_url" => route('paypal.cancel'),
+                ],
+                "purchase_units" => [
+                    [
+                        "description" => "Course Purchase from Seru Training",
+                        "amount" => [
+                            "currency_code" => "GBP",
+                            "value" => number_format($totalAmount, 2, '.', ''),
+                            "breakdown" => [
+                                "item_total" => [
+                                    "currency_code" => "GBP",
+                                    "value" => number_format($totalAmount, 2, '.', '')
+                                ]
+                            ]
+                        ],
+                        "items" => $items
+                    ]
+                ]
+            ]);
+
+            // Redirect to approval URL
+            if (isset($response['id']) && $response['status'] == 'CREATED') {
+                foreach ($response['links'] as $link) {
+                    if ($link['rel'] === 'approve') {
+                        return redirect()->away($link['href']);
+                    }
+                }
+            }
+
+            return redirect()->route('paypal.error')->with('error', 'Something went wrong with PayPal.');
+        }
+
+public function successTransaction(Request $request)
+{
+    $provider = new PayPalClient;
+    $provider->setApiCredentials(config('paypal'));
+
+    $token = $provider->getAccessToken();
+    $provider->setAccessToken($token); 
+
+    $response = $provider->capturePaymentOrder($request->query('token'));
+
+    if (isset($response['status']) && $response['status'] === 'COMPLETED') {
+        $capture = $response['purchase_units'][0]['payments']['captures'][0];
+      
+        $transactionId = $response['purchase_units'][0]['payments']['captures'][0]['id'];
+        $payerId = $response['payer']['payer_id'] ?? null;
+        $payerEmail = $response['payer']['email_address'] ?? null;
+        $amount = $capture['amount']['value'] ?? 0;
+
+        $cartItems = session('paypal_cart', []);
+        $paymentUniqueId = null;
+
+        if (!empty($cartItems)) {
+            $firstItem = $cartItems[0];
+            $payment = Payment::where('course_unique_id', $firstItem['unique_id'])
+                ->where('status', 'pending')
+                ->latest()
+                ->first();
+
+            if ($payment) {
+                $paymentUniqueId = $payment->payment_unique_id;
+            }
+        }
+
+        if (!$paymentUniqueId) {
+            return redirect()->route('paypal.error')->with('error', 'Could not verify payment session.');
+        }
+
+        // 🟢 Update all matching records with transaction & account IDs
+        Payment::where('payment_unique_id', $paymentUniqueId)->update([
+            'status' => 'completed',
+            'payment_type' => 'paypal',
+            'transaction_id' => $transactionId,
+            'account_id' => $payerId,
+            'paypal_email' => $payerEmail    
+        ]);
+
+        // Optional course progress logic
+        $details = Payment::where('payment_unique_id', $paymentUniqueId)->first();
+        CourseProgress::updateOrCreate(
+            [
+                'learner_secret_id' => $details->learner_secret_id,
+                'course_unique_id' => $details->course_unique_id
+            ],
+            ['progress' => '0']
+        );
+
+        // Clear session
+        session()->forget(['paypal_cart', 'paypal_billing', 'paypal_total']);
+
+        return redirect()->route('learner.page')->with('success', 'Payment successful!');
+    }
+
+    return redirect()->route('paypal.error')->with('error', 'Payment failed.');
+}
+
+public function cancelTransaction()
+{
+    return redirect()->route('learner.payment')->with('error', 'Payment canceled.');
+}
+
+public function errorTransaction()
+{
+    return view('course.paypalError');
+}
+
+}
+
+
+
+
+
