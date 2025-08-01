@@ -1,0 +1,451 @@
+####### Note : Before Start
+Take a webmail will Password: like 
+There will face some problem if you get any authentication related error than you need to change your password even if the password correct.
+For that keep the password like below format.
+
+Email : Support@skilltouch.co.uk
+Pass : Skill123Test!    
+
+
+
+## Step-1:
+Change the Config/mail.php
+
+'smtp' => [
+            'transport' => 'smtp',
+            'host' => env('MAIL_HOST', 'smtp.hostinger.com'),
+            'port' => env('MAIL_PORT', 465),
+            'encryption' => env('MAIL_ENCRYPTION', 'ssl'),
+            'username' => env('MAIL_USERNAME'),
+            'password' => env('MAIL_PASSWORD'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', 'localhost'),
+        ],
+
+..................... In Below change this ....................
+
+'from' => [
+    'address' => env('MAIL_FROM_ADDRESS', 'Support@skilltouch.co.uk'),
+    'name' => env('MAIL_FROM_NAME', 'Door Supervisor'),
+   ],
+
+
+
+
+
+## Step-2:
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=465
+MAIL_ENCRYPTION=ssl
+MAIL_USERNAME=Support@skilltouch.co.uk
+MAIL_PASSWORD=Skill123Test!
+MAIL_FROM_ADDRESS=Support@skilltouch.co.uk
+MAIL_FROM_NAME="Door Supervisor"
+
+
+
+## Step-3:
+Run This in Terminal it will create a folder name with Mail in app
+
+php artisan make:mail PaymentConfirmationMail
+
+
+
+
+## Step-4:
+Then Config the PaymentConfirmationMail
+
+<?php
+
+namespace App\Mail;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Queue\SerializesModels;
+
+class PaymentConfirmationMail extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public $billing;
+    public $cartItems;
+
+    public function __construct($billing, $cartItems)
+    {
+        $this->billing = $billing;
+        $this->cartItems = $cartItems;
+    }
+
+    public function build()
+    {
+        return $this->subject('Your Course Payment Confirmation')
+                    ->view('emails.mail'); // need to create a blade file (Importan) this will show to learner mail
+    }
+}
+
+
+
+
+
+## Step-5:
+Create the balde file name with mail in email folder
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>🚀 Your Door Supervisor Course Confirmation!</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            background-color: white;
+            padding: 25px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .course-card {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .course-title {
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .highlight {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Welcome to Door Supervisor Academy!</h1>
+    </div>
+    
+    <div class="content">
+        <h2>Hey {{ $billing['fullName'] }},</h2>
+        
+        <p>🎉 <strong>Your spot is confirmed!</strong> Thank you for registering with Door Supervisor Academy.</p>
+        
+        <p>Here's what you've booked:</p>
+        
+        @foreach($cartItems as $item)
+        <div class="course-card">
+            <div class="course-title">{{ $item['name'] }}</div>
+            <div>📍 <strong>Location:</strong> {{ $item['location'] }}</div>
+            <div>📅 <strong>Date:</strong> {{ $item['date'] }}</div>
+            <div>🎟 <strong>Quantity:</strong> {{ $item['quantity'] }}</div>
+            💷 Price: £{{ number_format($item['price'], 2) }} x {{ $item['quantity'] }} = £{{ number_format($item['price'] * $item['quantity'], 2) }}
+        </div>
+        @endforeach
+        
+        <p>We're excited to help you kickstart your career as a <strong>professional Door Supervisor</strong>!</p>
+        
+        <p>Need help preparing? <a href="#" class="button">Visit Our Resources</a></p>
+        
+        <p>Got questions? We're here for you at <span class="highlight">support@doorsupervisor.com</span></p>
+        
+        <div class="footer">
+            <p>See you in class!<br>
+            <strong>The Door Supervisor Team</strong></p>
+            <p>🔒 Your training journey starts here</p>
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+## Step-5: (Final Section)-add this to any controller function after sucessfull payment and after the insert in database
+Just this section Need to add
+
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PaymentConfirmationMail;
+
+ try {
+      Mail::to($billing['email'])->send(new PaymentConfirmationMail($billing, $cartItems));
+      } catch (\Exception $e) {
+          Log::error('Email sending failed: ' . $e->getMessage());
+      }
+
+
+
+
+//////// This is Demo where i add the mail in paypal payment ////////////////////////////////////////
+
+This is PaypalController.php
+
+<?php
+
+namespace App\Http\Controllers;
+
+use Srmklive\PayPal\Services\PayPal as PayPalClient;
+use Illuminate\Http\Request;
+use App\Models\Course;
+use App\Models\Payment;
+use App\Models\CourseProgress;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PaymentConfirmationMail;
+
+
+class PaypalController extends Controller
+{
+    public function createTransaction(Request $request)
+    {
+        $amount = $request->query('amount') ?? 10.00;
+
+        $provider = new PayPalClient;
+        $provider->setApiCredentials(config('paypal'));
+
+        $token = $provider->getAccessToken();
+
+         // Generate a unique payment ID
+        $paymentUniqueId = mt_rand(10000000, 99999999);
+
+        if (!is_array($token)) {
+            Log::error('PayPal token response was not an array', ['token' => $token]);
+            return redirect()->route('paypal.error')->with('error', 'PayPal authentication failed.');
+        }
+
+        $provider->setAccessToken($token);
+
+        // Retrieve cart and billing from session
+        $cartItems = Session::get('paypal_cart', []);
+        $billing = Session::get('paypal_billing', []);
+        $items = [];
+
+        if (empty($cartItems)) {
+            Log::error('No cart items found in session');
+            return redirect()->route('paypal.error')->with('error', 'Cart is empty.');
+        }
+
+        foreach ($cartItems as $item) {
+            $course = Course::where('unique_id', $item['unique_id'])->first();
+
+            if (!$course) {
+                Log::error('Invalid course unique_id: ' . $item['unique_id']);
+                return redirect()->route('paypal.error')->with('error', 'Invalid course selected.');
+            }
+
+            if ($course->price != $item['price']) {
+                Log::error('Course price mismatch for ' . $item['name']);
+                return redirect()->route('paypal.error')->with('error', 'Course price mismatch.');
+            }
+
+            $items[] = [
+                'name' => $item['name'],
+                'description' => 'Course ID: ' . $item['unique_id'] .
+                                ' | Location: ' . $item['location'] .
+                                ' | Date: ' . $item['date'] .
+                                ' | Quantity: ' . $item['quantity'],
+                'quantity' => (int) $item['quantity'],
+                'unit_amount' => [
+                    'currency_code' => 'GBP',
+                    'value' => number_format((float) $item['price'], 2, '.', ''),
+                ],
+                'sku' => $paymentUniqueId,
+            ];
+        }
+
+        // Calculate total amount
+        $totalAmount = array_reduce($items, function ($sum, $item) {
+            return $sum + ($item['unit_amount']['value'] * $item['quantity']);
+        }, 0);
+
+        if (abs($totalAmount - $amount) > 0.01) {
+            Log::error('Total amount mismatch', ['calculated' => $totalAmount, 'provided' => $amount]);
+            return redirect()->route('paypal.error')->with('error', 'Total amount mismatch.');
+        }
+
+       
+
+        // Store payment ID in session for successTransaction
+        Session::put('payment_unique_id', $paymentUniqueId);
+
+        // Create PayPal Order
+        $response = $provider->createOrder([
+            'intent' => 'CAPTURE',
+            'application_context' => [
+                'return_url' => route('paypal.success'),
+                'cancel_url' => route('paypal.cancel'),
+            ],
+            'purchase_units' => [
+                [
+                    'description' => 'Course Purchase from Seru Training',
+                    'amount' => [
+                        'currency_code' => 'GBP',
+                        'value' => number_format($totalAmount, 2, '.', ''),
+                        'breakdown' => [
+                            'item_total' => [
+                                'currency_code' => 'GBP',
+                                'value' => number_format($totalAmount, 2, '.', '')
+                            ]
+                        ]
+                    ],
+                    'items' => $items
+                ]
+            ]
+        ]);
+
+        // Redirect to approval URL
+        if (isset($response['id']) && $response['status'] === 'CREATED') {
+            foreach ($response['links'] as $link) {
+                if ($link['rel'] === 'approve') {
+                    return redirect()->away($link['href']);
+                }
+            }
+        }
+
+        Log::error('PayPal order creation failed', ['response' => $response]);
+        return redirect()->route('paypal.error')->with('error', 'Something went wrong with PayPal.');
+    }
+
+    public function successTransaction(Request $request)
+    {
+        $provider = new PayPalClient;
+        $provider->setApiCredentials(config('paypal'));
+
+        $token = $provider->getAccessToken();
+        $provider->setAccessToken($token);
+
+        $response = $provider->capturePaymentOrder($request->query('token'));
+
+        if (isset($response['status']) && $response['status'] === 'COMPLETED') {
+            $capture = $response['purchase_units'][0]['payments']['captures'][0];
+            $transactionId = $capture['id'];
+            $payerId = $response['payer']['payer_id'] ?? null;
+            $payerEmail = $response['payer']['email_address'] ?? null;
+            $amount = $capture['amount']['value'] ?? 0;
+
+            // Retrieve session data
+            $cartItems = Session::get('paypal_cart', []);
+            $billing = Session::get('paypal_billing', []);
+            $paymentUniqueId = Session::get('payment_unique_id');
+
+            if (empty($cartItems) || empty($billing) || !$paymentUniqueId) {
+                Log::error('Session data missing', [
+                    'cartItems' => $cartItems,
+                    'billing' => $billing,
+                    'paymentUniqueId' => $paymentUniqueId
+                ]);
+                return redirect()->route('paypal.error')->with('error', 'Session data missing.');
+            }
+
+            // Generate a unique learner_secret_id (since no login system)
+            $learnerSecretId = Str::uuid()->toString();
+
+            // Insert payment records
+            foreach ($cartItems as $item) {
+                $course = Course::where('unique_id', $item['unique_id'])->first();
+                if (!$course) {
+                    Log::error('Course not found for unique_id: ' . $item['unique_id']);
+                    continue;
+                }
+
+                Payment::create([
+                    'payment_unique_id' => $paymentUniqueId,
+                    'learner_secret_id' => $learnerSecretId,
+                    'name' => $billing['fullName'],
+                    'email' => $billing['email'],
+                    'phone' => $billing['phone'],
+                    'city' => $billing['city'],
+                    'address' => $billing['address'],
+                    'postal_code' => $billing['postalCode'],
+                    'country' => $billing['country'],
+                    'payment_type' => 'paypal',
+                    'course_unique_id' => $item['unique_id'],
+                    'whom' => $billing['whom'],
+                    'quantity' => $item['quantity'],
+                    'course_title' => $item['name'],
+                    'price' => $item['price'],
+                    'media' => Session::get('ref_source', 'Unknown'),
+                    'message' => $billing['message'] ?? null,
+                    'status' => 'completed',
+                    'transaction_id' => $transactionId,
+                    'account_id' => $payerId,
+                    'paypal_email' => $payerEmail,
+                    'selected_location' => $item['location'],
+                    'selected_date' => $item['date'],
+                ]);
+            }
+
+            try {
+                Mail::to($billing['email'])->send(new PaymentConfirmationMail($billing, $cartItems));                      ///////// This section where i use it.
+                } catch (\Exception $e) {
+                    Log::error('Email sending failed: ' . $e->getMessage());
+                }
+
+
+            // Clear session data
+            Session::forget(['paypal_cart', 'paypal_billing', 'paypal_total', 'payment_unique_id']);
+
+            // Clear localStorage cart (client-side)
+            echo '<script>localStorage.removeItem("cartItems"); localStorage.removeItem("cartDiscount");</script>';
+
+            return view('course.successPayment');
+        }
+
+        Log::error('PayPal payment capture failed', ['response' => $response]);
+        return redirect()->route('paypal.error')->with('error', 'Payment failed.');
+    }
+
+    public function cancelTransaction()
+    {
+        // Clear session data on cancel
+        Session::forget(['paypal_cart', 'paypal_billing', 'paypal_total', 'payment_unique_id']);
+        return redirect()->route('learner.payment')->with('error', 'Payment canceled.');
+    }
+
+    public function errorTransaction()
+    {
+        return view('course.paypalError');
+    }
+}
+
+
+
