@@ -1,0 +1,254 @@
+######################## In Hostinger Deploy Project (Using cron) #######################
+1. At first create a folder name with scripts 
+2. In the scripts folder you need 3 three js code file 
+3. names are auto-commit.ps1 , deploy.sh and deploy-1s.sh  (In below you will get the code)
+4. put the script folder in hostin(any database)
+5. this is important set this in hoting which call the deploy-1s.sh (change the username u71..... and domain name seru..... as your need)
+/bin/bash /home/u715729948/domains/serutrainingcourse.co.uk/scripts/deploy-1s.sh
+
+######################## If sometimes faceing problem for .env and vendor ##################################
+For that you have to get access of ssh for direct work in server side
+1. create a backup folder command (you can't see the folder but it will exsist)  command :  mkdir -p ../backups
+2. now put the .env in backups folder command : [ -f .env ] && mv .env ../backups/.env
+3. now put the vendor in backups folder command : [ -d vendor ] && mv vendor ../backups/vendor
+
+Now can the git code to put in hostin.
+command :
+git init
+git remote add origin https://github.com/russkinbright/serutrainingcourse.co.uk.git. (using . after git means the project will clone in current folder not in other folder)
+
+4. Now visible the .env and vendor file and folder
+Command : Restore .env and vendor (DO NOT put it in Git) - make sure your .gitignore file empty in below for laravel.
+[ -f ../backups/.env ] && mv ../backups/.env .env
+[ -d ../backups/vendor ] && rm -rf ./vendor && mv ../backups/vendor ./vendor
+
+######################## Now use the auto commit in github ##################################
+1. create a folder with any name than in vs code terminal run 
+Command:
+git clone https://github.com/russkinbright/serutrainingcourse.co.uk.git
+
+2. After that run (In cmd not in project terminal)
+Command : make sure to adjust the path D:\Seru\
+After every changes in code check in terminal it will ask for commit message 
+D:\Seru\scripts\auto-commit.ps1
+
+If everything ok then it will show like this 
+--------------------------------------------------------------------Start From Here ---------------------------------------------
+PS C:\Users\Russkin Bright> D:\Seru\scripts\auto-commit.ps1
+Auto-commit watching: D:\Seru (branch: main, every 1 s)
+
+=== Changes detected ===
+ M auto-commit.log
+========================
+
+Enter commit message: change the design of pixel setup
+error: cannot pull with rebase: You have unstaged changes.
+error: Please commit or stash them.
+Enumerating objects: 5, done.
+Counting objects: 100% (5/5), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 392 bytes | 392.00 KiB/s, done.
+Total 3 (delta 2), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (2/2), completed with 2 local objects.
+To https://github.com/russkinbright/serutrainingcourse.co.uk.git
+   5218814..bda655f  main -> main
+[2025-08-28T12:33:52] pushed (change the design of pixel setup (2025-08-28 12:33:49))
+
+=== Changes detected ===
+ M auto-commit.log
+========================
+
+Enter commit message:
+--------------------------------------------------------------------End Here --------------------------------------------
+
+
+
+------------------------- ----------- -------- auto-commit.ps1 (this is for auto commit in guthub you just need to write commit message and commit will done auto)-------------- -------------------- ---------------------- ------------------ 
+#### Code ###
+# Auto-commit & push tracked changes every N seconds
+# Windows / PowerShell
+# - Includes new files (respects .gitignore)
+# - Always asks for a commit message and appends date/time
+# - Keeps your original pull/commit/push flow
+
+$ErrorActionPreference = 'Stop'  # make try/catch behave as expected
+
+# If this script sits in <project>\scripts, the project root is one level up:
+$folder  = (Resolve-Path "$PSScriptRoot\..").Path   # change to $PSScriptRoot if the script is in the repo root
+$branch  = "main"
+$seconds = 1
+$log     = Join-Path $folder "auto-commit.log"
+$kill    = Join-Path $folder ".auto-commit.stop"    # create this file to stop the loop
+
+# make sure Git uses the credential manager (only needs to be set once on your machine)
+git config --global credential.helper manager 2>$null | Out-Null
+
+Write-Host "Auto-commit watching: $folder (branch: $branch, every $seconds s)"
+"[$(Get-Date -Format s)] start watching $folder" | Out-File -Append $log
+
+while ($true) {
+  if (Test-Path $kill) {
+    "[$(Get-Date -Format s)] stop flag detected, exiting" | Out-File -Append $log
+    break
+  }
+
+  # detect any changes (tracked + untracked; respects .gitignore)
+  $status = git -C $folder status --porcelain
+
+  if ($LASTEXITCODE -ne 0) {
+    "[$(Get-Date -Format s)] git status failed" | Out-File -Append $log
+    Start-Sleep -Seconds $seconds
+    continue
+  }
+
+  if ($status) {
+    # show a brief summary (shows added/modified/untracked)
+    Write-Host "`n=== Changes detected ==="
+    $status | Write-Host
+    Write-Host "========================`n"
+
+    # prompt for commit message (required)
+    do {
+      $userMsg = Read-Host "Enter commit message"
+      if ([string]::IsNullOrWhiteSpace($userMsg)) { Write-Warning "Commit message cannot be empty." }
+    } while ([string]::IsNullOrWhiteSpace($userMsg))
+
+    # append timestamp
+    $commitMsg = "{0} ({1:yyyy-MM-dd HH:mm:ss})" -f $userMsg, (Get-Date)
+
+    try {
+      # fetch latest and rebase (if this causes issues, switch to: git -C $folder pull origin $branch)
+      git -C $folder pull --rebase origin $branch | Out-Null
+
+      # include new files too (respects .gitignore)
+      git -C $folder add -A | Out-Null
+      if ($LASTEXITCODE -ne 0) {
+        $err = "add -A failed (code $LASTEXITCODE)"
+        Write-Warning $err
+        "[$(Get-Date -Format s)] $err" | Out-File -Append $log
+        Start-Sleep -Seconds $seconds
+        continue
+      }
+
+      # if nothing staged (can happen if only ignored files changed), skip
+      $pending = git -C $folder diff --cached --name-only
+      if (-not $pending) {
+        "[$(Get-Date -Format s)] nothing to commit (only ignored or no effective changes)" | Out-File -Append $log
+        Start-Sleep -Seconds $seconds
+        continue
+      }
+
+      # commit all staged changes with your message + timestamp
+      git -C $folder commit -m $commitMsg | Out-Null
+      if ($LASTEXITCODE -ne 0) {
+        $err = "commit failed (code $LASTEXITCODE) - not pushing"
+        Write-Warning $err
+        "[$(Get-Date -Format s)] $err" | Out-File -Append $log
+        Start-Sleep -Seconds $seconds
+        continue
+      }
+
+      # push (set upstream if missing)
+      $hasUpstream = $false
+      git -C $folder rev-parse --abbrev-ref --symbolic-full-name "@{u}" 1>$null 2>$null
+      if ($LASTEXITCODE -eq 0) { $hasUpstream = $true }
+
+      if ($hasUpstream) {
+        git -C $folder push origin $branch | Out-Null
+      } else {
+        git -C $folder push -u origin $branch | Out-Null
+      }
+
+      if ($LASTEXITCODE -ne 0) {
+        $err = "push failed (code $LASTEXITCODE)"
+        Write-Warning $err
+        "[$(Get-Date -Format s)] $err" | Out-File -Append $log
+      } else {
+        $msg = "[$(Get-Date -Format s)] pushed ($commitMsg)"
+        Write-Host $msg
+        $msg | Out-File -Append $log
+      }
+    } catch {
+      $err = "[$(Get-Date -Format s)] ERROR: $($_.Exception.Message)"
+      Write-Warning $err
+      $err | Out-File -Append $log
+    }
+  }
+
+  Start-Sleep -Seconds $seconds
+}
+
+
+------------------------- ----------- -------- deploy.sh (this is for auto deploy in hostin don't need to manual)-------------- -------------------- ---------------------- ------------------ 
+###Code
+
+#!/bin/bash
+set -euo pipefail
+
+ROOT="/home/u715729948/domains/serutrainingcourse.co.uk/public_html"
+REPO_URL="https://github.com/russkinbright/serutrainingcourse.co.uk.git"
+BRANCH="main"
+LOG="/home/u715729948/domains/serutrainingcourse.co.uk/deploy.log"
+LOCK="$ROOT/.deploy_lock"
+
+umask 022
+mkdir -p "$(dirname "$LOG")"
+
+# prevent overlap
+if ! mkdir "$LOCK" 2>/dev/null; then
+  echo "$(date '+%F %T') deploy: another run in progress, skip" >> "$LOG"
+  exit 0
+fi
+trap 'rmdir "$LOCK"' EXIT
+
+echo "$(date '+%F %T') deploy: start" >> "$LOG"
+
+# clone if missing
+if [ ! -d "$ROOT/.git" ]; then
+  echo "$(date '+%F %T') deploy: cloning repo into $ROOT" >> "$LOG"
+  rm -rf "$ROOT"/*
+  git clone "$REPO_URL" "$ROOT"
+fi
+
+cd "$ROOT"
+git config --global --add safe.directory "$ROOT" || true
+git remote set-url origin "$REPO_URL" || true
+git fetch origin "$BRANCH" --prune
+
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse "origin/$BRANCH" || echo "")
+
+if [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
+  echo "$(date '+%F %T') deploy: updating to origin/$BRANCH" >> "$LOG"
+  git reset --hard "origin/$BRANCH"
+
+  # PHP/Laravel post-steps (run only if present)
+  if [ -f composer.json ] && command -v composer >/dev/null 2>&1; then
+    composer install --no-dev --prefer-dist --optimize-autoloader >> "$LOG" 2>&1 || true
+  fi
+  if [ -f artisan ]; then
+    php artisan config:cache >> "$LOG" 2>&1 || true
+    php artisan route:cache  >> "$LOG" 2>&1 || true
+    php artisan view:cache   >> "$LOG" 2>&1 || true
+    # php artisan migrate --force >> "$LOG" 2>&1 || true   # enable if you want auto migrations
+  fi
+
+  echo "$(date '+%F %T') deploy: done (updated)" >> "$LOG"
+else
+  echo "$(date '+%F %T') deploy: no changes" >> "$LOG"
+fi
+
+
+
+------------------------- ----------- -------- deploy-1s.sh (this is also for auto deploy but it call the deploy.sh in every second which make it more faster)-------------- -------------------- ---------------------- ------------------ 
+####  Code
+
+
+# Run deploy.sh ~every second for ~1 minute
+for i in $(seq 1 59); do
+  /home/u715729948/domains/serutrainingcourse.co.uk/scripts/deploy.sh \
+    >> /home/u715729948/domains/serutrainingcourse.co.uk/deploy.cron.log 2>&1
+  sleep 1
+done
+

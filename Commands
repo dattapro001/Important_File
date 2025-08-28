@@ -1,3 +1,0 @@
-###########  Maintainance Command  ####################
-php artisan down --status=503 --retry=60 --secret="chinmoy123"
-php artisan up
