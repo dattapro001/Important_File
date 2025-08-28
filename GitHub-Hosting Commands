@@ -63,6 +63,11 @@ Enter commit message:
 --------------------------------------------------------------------End Here --------------------------------------------
 
 
+######################## Get GitHub All Commit In your project and in a separate .txt file ##################################
+git log --author="dattapro001@gmail.com" --pretty=format:"%h | %an | %ad | %s" --date=short > my_commits.txt
+
+
+
 
 ------------------------- ----------- -------- auto-commit.ps1 (this is for auto commit in guthub you just need to write commit message and commit will done auto)-------------- -------------------- ---------------------- ------------------ 
 #### Code ###
