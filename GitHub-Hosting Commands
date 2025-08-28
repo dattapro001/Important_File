@@ -5,6 +5,8 @@
 4. put the script folder in hostin(any database)
 5. this is important set this in hoting which call the deploy-1s.sh (change the username u71..... and domain name seru..... as your need)
 /bin/bash /home/u715729948/domains/serutrainingcourse.co.uk/scripts/deploy-1s.sh
+6. after that in your project just create a file name with ( auto-commit.log ) where you can see the you commit histry and it important to create 
+carefull create it in project folder.
 
 ######################## If sometimes faceing problem for .env and vendor ##################################
 For that you have to get access of ssh for direct work in server side
