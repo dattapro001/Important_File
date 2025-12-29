@@ -1,0 +1,90 @@
+============================================================
+    🚀 PATHCHORCHA VPS DEPLOYMENT & COMMAND CHEATSHEET
+============================================================
+
+1. 📂 EDITING CONFIGURATION FILES
+------------------------------------------------------------
+# Backend Files
+nano /var/www/pathchorcha/Backend/.env
+nano /var/www/pathchorcha/Backend/src/server.ts
+nano /var/www/pathchorcha/Backend/Dockerfile
+nano /var/www/pathchorcha/Backend/prisma/schema.prisma
+
+# Frontend Files
+nano /var/www/pathchorcha/Frontend/.env.production
+nano /var/www/pathchorcha/Frontend/next.config.ts
+
+# Nginx Config
+nano /var/www/pathchorcha/nginx/default.conf
+
+
+2. 🔄 DEPLOYMENT SCENARIOS (After git pull)
+------------------------------------------------------------
+# Scenario 1: Normal Code Change (UI or Logic)
+git pull
+docker compose up -d --build
+
+# Scenario 2: Database/Prisma Schema Change (Important!)
+# Use this when you add tables or columns
+git pull
+docker compose up -d --build
+docker compose exec backend npx prisma migrate deploy
+
+# Scenario 3: Environment or Config Change (.env, Dockerfile)
+git pull
+docker compose down
+docker compose up -d --build
+
+
+3. 🛠 DOCKER MANAGEMENT COMMANDS
+------------------------------------------------------------
+cd /var/www/pathchorcha
+
+# Restart all services
+docker compose restart
+
+# Only rebuild Backend or Frontend
+docker compose up -d --build backend
+docker compose up -d --build frontend
+
+# View Live Logs
+docker compose logs -f --tail=200 backend
+docker compose logs -f --tail=200 frontend
+
+
+4. 💎 PRISMA STUDIO (Database GUI Access)
+------------------------------------------------------------
+# Step 1: Inside VPS (Enter Backend Container)
+docker exec -it pathchorcha_backend sh
+npx prisma studio --hostname 0.0.0.0 --port 51212
+
+# Step 2: From Local PC Terminal (SSH Tunneling)
+ssh -N -L 51212:127.0.0.1:51212 root@72.61.114.217
+
+# Step 3: Open Browser
+URL: http://localhost:51212/
+
+
+5. 📦 BACKUP & AUTOMATION
+------------------------------------------------------------
+# Create Project Backup (In VPS)
+cd /var/www
+tar -czvf pathchorcha-full-backup.tar.gz pathchorcha
+
+# Download Backup to Local PC (Run from Local CMD/PowerShell)
+scp root@72.61.114.217:/var/www/pathchorcha-full-backup.tar.gz .
+
+# Run Deployment Script
+bash deploy.sh
+
+
+6. ⚠️ WARNING: DANGEROUS COMMANDS
+------------------------------------------------------------
+# Fully Reset Database (Will DELETE ALL DATA)
+# Do NOT use unless strictly necessary
+docker compose down -v 
+============================================================
+
+
+
+
