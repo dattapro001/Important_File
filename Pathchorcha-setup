@@ -21,7 +21,7 @@ nano /var/www/pathchorcha/Frontend/next.config.ts
 # Nginx Config
 nano /var/www/pathchorcha/nginx/default.conf
 
-# আপডেট করে restart করতে হবে Nginx
+# আপডেট করে restart করতে হবে Nginx (try to use this)
 docker compose restart nginx
 
 # পুরো stack restart (যখন বড় change)
