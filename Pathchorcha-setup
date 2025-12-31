@@ -14,8 +14,20 @@ nano /var/www/pathchorcha/Backend/prisma/schema.prisma
 nano /var/www/pathchorcha/Frontend/.env.production
 nano /var/www/pathchorcha/Frontend/next.config.ts
 
+
+
+# 👉 Nginx CONFIGURATION Mathod 👈
+------------------------------------------------------------
 # Nginx Config
 nano /var/www/pathchorcha/nginx/default.conf
+
+# আপডেট করে restart করতে হবে Nginx
+docker compose restart nginx
+
+# পুরো stack restart (যখন বড় change)
+docker compose down
+docker compose up -d
+
 
 
 2. 🔄 DEPLOYMENT SCENARIOS (After git pull)
@@ -84,6 +96,37 @@ bash deploy.sh
 # Do NOT use unless strictly necessary
 docker compose down -v 
 ============================================================
+
+
+7. 😥 WARNING: Github Commit 😥
+------------------------------------------------------------
+# যদি rebase চলাকালীন সমস্যা হয়, তাহলে rebase বাতিল করো
+git rebase --abort
+
+# সব recent git activity / commit history দেখার জন্য
+git reflog
+
+# reflog থেকে যেই commit-এ যেতে চাও, সেই commit ID ব্যবহার করে
+# পুরো প্রজেক্ট সেই অবস্থায় ফিরিয়ে আনো
+git checkout <commit-id> -- .
+
+উদাহরণ (তোমার ক্ষেত্রে)
+PS D:\pathchorcha> git reflog
+79b7f8e (HEAD -> main, origin/main, origin/HEAD) HEAD@{0}: rebase (abort): returning to refs/heads/main
+02ca219 HEAD@{1}: commit: update: feature / fix / config
+aba6919 HEAD@{2}: commit: update
+64bb90c HEAD@{3}: commit: update
+d0042a7 HEAD@{4}: commit: update
+bfd0720 HEAD@{5}: pull --rebase origin main (start): checkout bfd0720248556c013c461ec1d1ce0272b2a98969
+79b7f8e (HEAD -> main, origin/main, origin/HEAD) HEAD@{6}: commit: update
+824bf8f HEAD@{7}: reset: moving to origin/main
+92ff0ae HEAD@{8}: clone: from github.com:russkinbright/pathchorcha.git
+PS D:\pathchorcha> git checkout 02ca219 -- .
+
+git rebase --abort
+git reflog
+git checkout 02ca219 -- .
+
 
 
 ############### Cloudflare Pathchorcha setup ####################
